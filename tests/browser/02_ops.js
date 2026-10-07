@@ -414,6 +414,7 @@ Q+47JAY=
         testOp(browser, "Whirlpool", "test input", "8a0ee6885ba241353d17cbbe5f06538a7f04c8c955d376c20d6233fd4dd41aaffd13291447090ce781b5f940da266ed6d02cf8b79d4867065d10bdfc04166f38");
         // testOp(browser, "Windows Filetime to UNIX Timestamp", "test input", "test_output");
         testOp(browser, "XKCD Random Number", "test input", "4");
+        testOp(browser, "XXH64", "test input", "d58a2c9b91f8407c", ["0", "Hex"]);
     // testOp(browser, "XML Beautify", "test input", "test_output");
     // testOp(browser, "XML Minify", "test input", "test_output");
         // testOp(browser, "XOR", "test input", "test_output");

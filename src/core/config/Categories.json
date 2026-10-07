@@ -483,6 +483,7 @@
             "NT Hash",
             "LM Hash",
             "MurmurHash3",
+            "XXH64",
             "Fletcher-8 Checksum",
             "Fletcher-16 Checksum",
             "Fletcher-32 Checksum",

@@ -196,6 +196,7 @@ module.exports = {
         // testOp(browser, "Group IP addresses", "test input", "test_output");
     // testOp(browser, "Gunzip", "test input", "test_output");
     // testOp(browser, "Gzip", "test input", "test_output");
+        testOp(browser, "HAProxy Dynamic Cookie", "10.0.0.1:8080", "9dc3ee63bcef8674", [{ "option": "UTF8", "string": "mysecretkey" }, "Cookie value", "None", ""]);
         // testOp(browser, "HAS-160", "test input", "test_output");
         // testOp(browser, "HMAC", "test input", "test_output");
         // testOp(browser, "HTML To Text", "test input", "test_output");

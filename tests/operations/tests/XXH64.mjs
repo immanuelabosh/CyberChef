@@ -214,4 +214,78 @@ TestRegister.addTests([
             },
         ],
     },
+    {
+        name: "XXH64: HAProxy dynamic cookies from a YAML server list",
+        input: "    - ip: 10.2.126.17\n      name: au2wt-sssb-401\n      port: 80\n    - ip: 10.2.126.18\n      name: au2wt-sssb-402\n      port: 80\n    - ip: 10.2.126.19\n      name: au2wt-sssb-403\n      port: 80",
+        expectedOutput: "au2wt-sssb-401 1c8baf76a7297f69\nau2wt-sssb-402 a4a12c6ba711ec0b\nau2wt-sssb-403 db1d614a1ce376ce",
+        recipeConfig: [
+            {
+                op: "Find / Replace",
+                args: [{ option: "Regex", string: "\\r" }, "", true, false, false, false],
+            },
+            {
+                op: "Find / Replace",
+                args: [
+                    { option: "Regex", string: "^\\s*-\\s*ip:\\s*(\\S+)\\s*\\r?\\n\\s*name:\\s*(\\S+)\\s*\\r?\\n\\s*port:\\s*(\\d+)\\s*$" },
+                    "$2 mysecretkey|$1|$3", true, false, true, false
+                ],
+            },
+            {
+                op: "Subsection",
+                args: ["(?<=\\|)\\d{1,3}(?:\\.\\d{1,3}){3}(?=\\|)", true, true, false],
+            },
+            {
+                op: "Change IP format",
+                args: ["Dotted Decimal", "Hex"],
+            },
+            {
+                op: "Merge",
+                args: [true],
+            },
+            {
+                op: "Subsection",
+                args: ["(?<=\\|)\\d{1,5}(?=\\r?\\n|$)", true, true, false],
+            },
+            {
+                op: "Change IP format",
+                args: ["Decimal", "Hex"],
+            },
+            {
+                op: "Merge",
+                args: [true],
+            },
+            {
+                op: "Subsection",
+                args: ["(?<= )[^|\\n]+(?=\\|)", true, true, false],
+            },
+            {
+                op: "To Hex",
+                args: ["None", 0],
+            },
+            {
+                op: "Merge",
+                args: [true],
+            },
+            {
+                op: "Subsection",
+                args: ["(?<= )[0-9a-f]+\\|[0-9a-f]{8}\\|[0-9a-f]{8}", true, true, false],
+            },
+            {
+                op: "Find / Replace",
+                args: [{ option: "Regex", string: "\\|" }, "", true, false, false, false],
+            },
+            {
+                op: "From Hex",
+                args: ["Auto"],
+            },
+            {
+                op: "XXH64",
+                args: ["0", "Hex"],
+            },
+            {
+                op: "Merge",
+                args: [true],
+            },
+        ],
+    },
 ]);

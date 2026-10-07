@@ -4,7 +4,7 @@
  * Reference values were generated with the official xxHash implementation
  * (xxhsum) and cross-checked against xxhash-wasm.
  *
- * @author Immanuel Abosh
+ * @author immanuelabosh
  * @copyright Crown Copyright 2026
  * @license Apache-2.0
  */

@@ -1,5 +1,5 @@
 /**
- * @author Immanuel Abosh
+ * @author immanuelabosh
  * @copyright Crown Copyright 2026
  * @license Apache-2.0
  */

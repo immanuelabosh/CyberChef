@@ -16,6 +16,12 @@ const BASE64_TAB = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567
 /** Separator HAProxy places between the server cookie and its date fields. */
 const COOKIE_DELIM_DATE = "|";
 
+/**
+ * A bare configuration keyword such as "backend", "balance" or "dynamic-cookie-key".
+ * Addresses always contain a digit, dot, colon, bracket or "@", so they never match.
+ */
+const CONFIG_KEYWORD = /^[A-Za-z][A-Za-z_-]*$/;
+
 /** HAProxy address prefixes that never yield a dynamic cookie (no IP address). */
 const NON_IP_PREFIX = /^(unix|abns|abnsz|sockpair|fd|rhttp)@/i;
 
@@ -32,7 +38,7 @@ class HAProxyDynamicCookie extends Operation {
 
         this.name = "HAProxy Dynamic Cookie";
         this.module = "Hashing";
-        this.description = "Calculates the persistence cookie values that HAProxy assigns to backend servers when dynamic cookies are enabled (<code>cookie &lt;name&gt; insert ... dynamic</code> together with <code>dynamic-cookie-key &lt;secret&gt;</code>).<br><br>HAProxy derives each server's cookie as the XXH64 hash (seed 0) of the secret key followed by the server's IP address (4 bytes for IPv4, 16 bytes for IPv6) and its port as a 32-bit big-endian integer, rendered as 16 lowercase hexadecimal characters. Servers that declare an explicit <code>cookie</code> parameter keep that value instead, and dynamic cookies are only generated for servers with an IPv4 or IPv6 address.<br><br>Enter one server per line as <code>ip:port</code>, <code>[ipv6]:port</code> or <code>ip port</code>, or paste <code>server</code> statements straight from an HAProxy configuration. A missing port is treated as 0, as HAProxy does. Blank lines and comments are ignored. When the input contains <code>server</code> statements, all other configuration lines are ignored too, and a <code>dynamic-cookie-key</code> line supplies the key if the key argument is left blank, so an entire backend section can be pasted as-is.<br><br>When <code>maxidle</code> or <code>maxlife</code> are configured, HAProxy appends the last-seen date and, for maxlife, the first-seen date to the cookie as <code>|</code>-separated 5-character base64 values of the UNIX time in 4-second units. The Date fields option reproduces that suffix for the given date.";
+        this.description = "Calculates the persistence cookie values that HAProxy assigns to backend servers when dynamic cookies are enabled (<code>cookie &lt;name&gt; insert ... dynamic</code> together with <code>dynamic-cookie-key &lt;secret&gt;</code>).<br><br>HAProxy derives each server's cookie as the XXH64 hash (seed 0) of the secret key followed by the server's IP address (4 bytes for IPv4, 16 bytes for IPv6) and its port as a 32-bit big-endian integer, rendered as 16 lowercase hexadecimal characters. Servers that declare an explicit <code>cookie</code> parameter keep that value instead, and dynamic cookies are only generated for servers with an IPv4 or IPv6 address.<br><br>Enter one server per line as <code>ip:port</code>, <code>[ipv6]:port</code> or <code>ip port</code>, or paste <code>server</code> statements straight from an HAProxy configuration. A missing port is treated as 0, as HAProxy does. The formats can be mixed freely. Blank lines, comments and other configuration keywords (<code>backend</code>, <code>balance</code>, <code>cookie</code>, <code>default-server</code>, ...) are ignored, and a <code>dynamic-cookie-key</code> line supplies the key if the key argument is left blank, so an entire backend section can be pasted as-is.<br><br>When <code>maxidle</code> or <code>maxlife</code> are configured, HAProxy appends the last-seen date and, for maxlife, the first-seen date to the cookie as <code>|</code>-separated 5-character base64 values of the UNIX time in 4-second units. The Date fields option reproduces that suffix for the given date.";
         this.infoURL = "https://docs.haproxy.org/3.2/configuration.html#dynamic-cookie-key";
         this.inputType = "string";
         this.outputType = "string";
@@ -70,11 +76,10 @@ class HAProxyDynamicCookie extends Operation {
         const [key, outputFormat, dateFields, dateStr] = args;
         const lines = input.split(/\r?\n/).map(l => l.trim());
 
-        // Configuration mode: when 'server' statements are present, every other
-        // line is treated as surrounding configuration and ignored.
-        const configMode = lines.some(l => /^server\s/.test(l));
+        // A blank key falls back to a dynamic-cookie-key line in the input, so a
+        // whole backend section can be pasted as-is.
         let keyBytes = Uint8Array.from(Utils.convertToByteArray(key.string || "", key.option));
-        if (configMode && keyBytes.length === 0) {
+        if (keyBytes.length === 0) {
             const keyLine = lines.find(l => /^dynamic-cookie-key\s/.test(l));
             if (keyLine) {
                 keyBytes = Utils.strToUtf8ByteArray(HAProxyDynamicCookie.unquote(keyLine.replace(/^dynamic-cookie-key\s+/, "")));
@@ -94,7 +99,6 @@ class HAProxyDynamicCookie extends Operation {
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             if (line === "" || line.startsWith("#")) continue;
-            if (configMode && !/^server\s/.test(line)) continue;
 
             const server = HAProxyDynamicCookie.parseLine(line, i + 1);
             if (server === null) continue;
@@ -128,7 +132,7 @@ class HAProxyDynamicCookie extends Operation {
      *
      * @param {string} line - trimmed, non-empty line
      * @param {number} lineNo - 1-based line number for error messages
-     * @returns {?Object} null if the line carries no server (e.g. default-server)
+     * @returns {?Object} null if the line is surrounding configuration rather than a server
      */
     static parseLine(line, lineNo) {
         const tokens = line.split(/\s+/);
@@ -145,7 +149,9 @@ class HAProxyDynamicCookie extends Operation {
             addrToken = tokens[2];
             params = tokens.slice(3);
             statement = line;
-        } else if (tokens[0] === "default-server") {
+        } else if (CONFIG_KEYWORD.test(tokens[0])) {
+            // Any other HAProxy keyword line (backend, balance, cookie, default-server,
+            // dynamic-cookie-key, ...) is surrounding configuration: ignore it.
             return null;
         } else if (tokens.length === 1) {
             addrToken = tokens[0];

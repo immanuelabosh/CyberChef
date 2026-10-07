@@ -149,8 +149,32 @@ TestRegister.addTests([
     },
     {
         name: "HAProxy Dynamic Cookie: unparseable line",
-        input: "this is not a server",
-        expectedOutput: "Line 1: could not parse 'this is not a server'. Expected 'ip:port', '[ipv6]:port', 'ip port' or an HAProxy 'server' statement.",
+        input: "10.0.0.1:80 extra junk",
+        expectedOutput: "Line 1: could not parse '10.0.0.1:80 extra junk'. Expected 'ip:port', '[ipv6]:port', 'ip port' or an HAProxy 'server' statement.",
+        recipeConfig: [{ op: "HAProxy Dynamic Cookie", args: [KEY, "Cookie value", "None", ""] }],
+    },
+    {
+        name: "HAProxy Dynamic Cookie: named line without the server keyword is an error",
+        input: "web1 10.0.0.1:80",
+        expectedOutput: "Line 1: could not parse 'web1 10.0.0.1:80'. Expected 'ip:port', '[ipv6]:port', 'ip port' or an HAProxy 'server' statement.",
+        recipeConfig: [{ op: "HAProxy Dynamic Cookie", args: [KEY, "Cookie value", "None", ""] }],
+    },
+    {
+        name: "HAProxy Dynamic Cookie: mixed input formats on consecutive lines",
+        input: "server au2wp-ssb-401 10.2.126.17:80\n10.2.126.18:80\n10.2.126.19 80\n[2001:db8::1]:443\n2001:db8::1 443\nipv4@10.2.126.17:80\n10.2.126.17",
+        expectedOutput: "au2wp-ssb-401 1c8baf76a7297f69\n10.2.126.18:80 a4a12c6ba711ec0b\n10.2.126.19:80 db1d614a1ce376ce\n[2001:db8::1]:443 3438d656124473ec\n[2001:db8::1]:443 3438d656124473ec\n10.2.126.17:80 1c8baf76a7297f69\n10.2.126.17:0 5711772212fc27d6",
+        recipeConfig: [{ op: "HAProxy Dynamic Cookie", args: [KEY, "Name or address and cookie", "None", ""] }],
+    },
+    {
+        name: "HAProxy Dynamic Cookie: mixed formats interleaved with configuration lines",
+        input: "backend web\n    balance roundrobin\n    cookie SRV insert indirect nocache dynamic\n    dynamic-cookie-key \"mysecretkey\"\n    default-server inter 2s\n    server web1 10.2.126.17:80 check\n10.2.126.18:80\n    # a comment\n10.2.126.19 80\n    server web4 10.2.126.18:80 cookie fixed",
+        expectedOutput: "1c8baf76a7297f69\na4a12c6ba711ec0b\ndb1d614a1ce376ce\nfixed",
+        recipeConfig: [{ op: "HAProxy Dynamic Cookie", args: [{ option: "UTF8", string: "" }, "Cookie value", "None", ""] }],
+    },
+    {
+        name: "HAProxy Dynamic Cookie: configuration keywords without any server statement are ignored",
+        input: "defaults\nmode http\ntimeout connect 5s\n10.0.0.1:8080",
+        expectedOutput: "9dc3ee63bcef8674",
         recipeConfig: [{ op: "HAProxy Dynamic Cookie", args: [KEY, "Cookie value", "None", ""] }],
     },
     {
